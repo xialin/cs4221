@@ -1,5 +1,5 @@
-from django.shortcuts import render
-
+from django.shortcuts import render, redirect
+from django.conf import settings
 import textwrap
 
 from django.http import HttpResponse
@@ -21,3 +21,11 @@ class HomePageView(View):
             </html>
         ''')
         return HttpResponse(response_text)
+
+def upload(request):
+    if request.method == 'POST' and request.FILES['myfile']:
+        myfile = request.FILES['myfile']
+        return render(request, 'upload.html', {
+            'uploaded_file_url': myfile.name
+        })
+    return render(request, 'upload.html')

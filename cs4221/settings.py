@@ -54,7 +54,7 @@ ROOT_URLCONF = 'cs4221.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(BASE_DIR, 'hello/templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -80,9 +80,9 @@ DATABASES = {
         'NAME': 'djangostack',
         'HOST': '/Applications/djangostack-1.10.6-0/postgresql',
         'PORT': '5432',
-        'USER': 'bitnami',
-        'PASSWORD': 'a42f7498f8'
-    }
+        'USER': 'postgres',
+        'PASSWORD': 'admin'
+     }
 }
 
 EXAMPLE_DATABASES = {

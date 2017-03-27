@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Choose key</title>
+  </head>
+  <body>
+    {% block content %}
+	  <form method="post" action="choosekey" enctype="multipart/form-data">
+	    {% csrf_token %}
+	    Choose your key here:
+	    <button type="submit">Next</button>
+	  </form>
+
+	  {% if uploaded_file_content %}
+	    <p>Below is uploaded file content:</p>
+	    <textarea disabled="true" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
+	  {% endif %}
+
+	  <p><a href="{% url 'home' %}">Return to home</a></p>
+	{% endblock %}
+  </body>
+</html>

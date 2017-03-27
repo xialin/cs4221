@@ -1,0 +1,74 @@
+<data>
+	<entity id="1" name="Office">
+		<attribute id="1" name="Name" />
+		<attribute id="2" name="Country" />
+		<attribute id="3" name="Zip"/>
+		<key>1</key>
+		<key>2,3</key>
+	</entity>
+
+	<entity id="2" name="Consultant">
+		<attribute id="1" name="PassportNumber"/>
+		<attribute id="2" name="Name"/>
+		<attribute id="3" name="StaffNumber"/>
+		<attribute id="4" relation_id="1"/>
+		<key>1</key>
+		<key>3,4</key>
+	</entity>
+
+	<entity id="3" name="Project">
+		<attribute id="1" name="Code"/>
+		<attribute id="2" name="Description"/>
+		<key>1</key>
+	</entity>
+
+	<entity id="4" name="Customer">
+		<attribute id="1" name="AccountNumber"/>
+		<attribute id="2" name="Name"/>
+		<key>1</key>
+	</entity>
+
+	<entity id="5" name="Pool">
+		<attribute id="1" name="Name"/>
+		<attribute id="2" name="Location"/>
+		<key>1</key>
+	</entity>
+
+	<entity id="6" name="Resource">
+		<attribute id="1" name="AssetNumber"/>
+		<attribute id="2" name="Type"/>
+		<key>1</key>
+	</entity>
+
+	<relationship id="1" name="WorkIn">
+		<attribute id="1" entity_id="1" min_participation="0" max_participation="N"/>
+		<attribute id="2" entity_id="2" min_participation="1" max_participation="1"/>
+		<key>1,2</key>
+	</relationship>
+
+	<relationship id="2" name="WorkFor">
+		<attribute id="1" name="Cost"/>
+		<attribute id="2" entity_id="2" min_participation="0" max_participation="N"/>
+		<attribute id="3" entity_id="3" min_participation="0" max_participation="N"/>
+		<!-- <attribute id="4" relation_id="2" min_participation="0" max_participation="N"/> -->
+		<key>2,3</key>
+	</relationship>
+
+	<relationship id="3" name="Use">
+		<attribute id="1" name="Cost"/>
+		<attribute id="2" entity_id="6" min_participation="0" max_participation="N"/>
+		<attribute id="3" relation_id="2" min_participation="0" max_participation="N"/>
+		<key>2,3</key>
+	</relationship>
+
+	<relationship id="4" name="Propose">
+		<attribute id="1" entity_id="4" min_participation="0" max_participation="N"/>
+		<attribute id="2" entity_id="3" min_participation="1" max_participation="1"/>
+		<key>1,2</key>
+	</relationship>
+
+	<relationship id="5" name="From">
+		<attribute id="1" entity_id="5" min_participation="0" max_participation="N"/>
+		<attribute id="2" entity_id="6" min_participation="0" max_participation="1"/>
+	</relationship>
+</data>

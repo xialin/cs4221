@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Merge table</title>
+  </head>
+  <body>
+    {% block content %}
+	  <form method="post" action="proceed_next" enctype="multipart/form-data">
+	    {% csrf_token %}
+	    Do you want to merge [{{merge_from}}] to [{{merge_to}}]?
+		<input type="text" hidden name="merge_from" value="{{merge_from}}">
+		<input type="text" hidden name="merge_to" value="{{merge_to}}">
+	    <br>
+	    <input type="radio" name="merge_table" value="1"> Yes<br>
+	    <input type="radio" name="merge_table" value="0"> No<br>
+	    <button type="submit">Next</button>
+	  </form>
+
+	  {% if uploaded_file_content %}
+	    <p>Below is uploaded file content:</p>
+	    <textarea disabled="disabled" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
+	  {% endif %}
+
+	  <p><a href="{% url 'home' %}">Return to home</a></p>
+	{% endblock %}
+  </body>
+</html>

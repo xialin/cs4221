@@ -6,7 +6,7 @@
   </head>
   <body>
     {% block content %}
-	  <form method="post" action="choosekey" enctype="multipart/form-data">
+	  <form method="post" action="choose_key" enctype="multipart/form-data">
 	    {% csrf_token %}
 	    <button type="submit">Generate</button>
 	  </form>

@@ -8,5 +8,6 @@ urlpatterns = [
     url(r'^upload$', views.upload, name='upload'),
     url(r'^generate$', views.generate, name='generate'),
     url(r'^choosekey$', views.choosekey, name='choosekey'),
+    url(r'^selectedkey$', views.selectedkey, name='selectedkey'),
 
 ]

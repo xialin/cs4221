@@ -1,5 +1,8 @@
 import json
 import xml.etree.ElementTree as ET
+from django.shortcuts import render, redirect
+from django.http import HttpResponse
+from django.http import JsonResponse
 
 '''
 TODO:
@@ -30,9 +33,9 @@ XML_RELATION_ID = 'relation_id'
 XML_NAME = 'name'
 
 # START INTERFACE TO VIEW
-def ConvertXmlToJson(tree):
+def ConvertXmlToJson(request, tree):
     # Prep Data Structures
-    root = tree.getroot()
+    root = tree
     relationships = convert_from_xml_nodes(tree.findall('relationship'))
     entities = convert_from_xml_nodes(tree.findall('entity'))
     sorted_entities = sort_entities_into_weak_and_strong(entities)
@@ -40,21 +43,52 @@ def ConvertXmlToJson(tree):
     strong_entities = sorted_entities['strong']
 
     # Start Processing
-    processed_tables = process_strong_entities(strong_entities, {})
-    processed_tables = process_weak_entities(weak_entities, entities, relationships, processed_tables)
+    processed_tables = process_strong_entities(request, strong_entities, {})
+    if isinstance(processed_tables, HttpResponse):
+            return processed_tables; 
+    processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
+    if isinstance(processed_tables, HttpResponse):
+            return processed_tables; 
     processed_tables = process_relationships(relationships, entities, processed_tables)
+    if isinstance(processed_tables, HttpResponse):
+            return processed_tables; 
 
     for table in processed_tables.values():
         table.pop(TABLE_NAME) # Remove the table name we stored for convenience during processing
 
     output_json = json.dumps(processed_tables, indent=4)
     print output_json
-    return output_json
+    return JsonResponse(processed_tables)
+
+    # return render(request, 'finaljson.html', {
+    #     output_json: output_json
+    # })
 
 def prompt_user_for_input(prompt):
     user_input = raw_input(prompt)
     return user_input
 # END INTERFACE TO VIEW
+
+
+def UpdateKeyInXML(request, tree, tableName, primaryKeyOption):
+    for node in tree: 
+        if node.attrib[XML_NAME] == tableName:
+
+            keyNodes = node.findall("key");
+            for i, keyNode in enumerate(keyNodes):
+                print i;
+                print primaryKeyOption;
+                if i == int(primaryKeyOption):
+                    print keyNode;
+                    selectedKeyNode = keyNode;
+                    break;
+            for elem in keyNodes:
+                print elem.text
+                node.remove(elem)
+            print node.text
+            node.append(selectedKeyNode)
+
+    return tree;
 
 
 
@@ -97,12 +131,14 @@ def sort_entities_into_weak_and_strong(entities):
 
 
 # START PROCESSING FUNCTIONS
-def process_strong_entities(strong_entities, processed_tables):
+def process_strong_entities(request, strong_entities, processed_tables):
     for strong_entity in strong_entities:
-        processed_tables = process_strong_entity_into_table(strong_entity, processed_tables)
+        processed_tables = process_strong_entity_into_table(request, strong_entity, processed_tables)
+        if isinstance(processed_tables, HttpResponse):
+            return processed_tables;  
     return processed_tables
 
-def process_weak_entities(weak_entities, entities, relationships, processed_tables):
+def process_weak_entities(request, weak_entities, entities, relationships, processed_tables):
     for weak_entity in weak_entities:
         if not is_processed(weak_entity, processed_tables):
             stack = [weak_entity]
@@ -114,7 +150,7 @@ def process_weak_entities(weak_entities, entities, relationships, processed_tabl
                     # Once we have a dominant entity that's been processed, we have what we need to process the weak entity
                     dominant_entity_table = processed_tables[dominant_entity[TABLE_NAME]]
                     #print "processing " + temp_weak_entity[XML_NAME]
-                    processed_tables = process_weak_entity_into_table(temp_weak_entity, dominant_entity_table, processed_tables)
+                    processed_tables = process_weak_entity_into_table(request, temp_weak_entity, dominant_entity_table, processed_tables)
                 else:
                     if dominant_entity in stack:
                         # TODO: show circular reference error message
@@ -192,17 +228,21 @@ def get_dependent_relationship(relationship, relationships):
 def is_processed(entity, processed_tables):
     return entity[XML_NAME] in processed_tables.keys()
 
-def process_strong_entity_into_table(strong_entity, processed_tables):
+def process_strong_entity_into_table(request, strong_entity, processed_tables):
     table_name = strong_entity[XML_NAME]
     primary_key_options = get_primary_key_options(strong_entity)
-    processed_table = process_table(table_name, strong_entity, primary_key_options, False)
+    processed_table = process_table(request, table_name, strong_entity, primary_key_options, False)
+    if isinstance(processed_table, HttpResponse):
+       return processed_table; 
     processed_tables[table_name] = processed_table
     return processed_tables
 
-def process_weak_entity_into_table(weak_entity, dominant_entity_table, processed_tables):
+def process_weak_entity_into_table(request, weak_entity, dominant_entity_table, processed_tables):
     table_name = weak_entity[XML_NAME]
     primary_key_options = get_primary_key_options(weak_entity, dominant_entity_table)
-    processed_table = process_table(table_name, weak_entity, primary_key_options, True)
+    processed_table = process_table(request, table_name, weak_entity, primary_key_options, True)
+    if isinstance(processed_table, HttpResponse):
+       return processed_table; 
     processed_tables[table_name] = processed_table
     return processed_tables
 
@@ -253,8 +293,10 @@ def process_relationship_into_table(relationship, dependent_relationship, proces
     processed_tables[table_name] = processed_table
     return processed_tables
 
-def process_table(table_name, entity, primary_key_options, is_weak = False, is_relationship = False):
-    primary_key_index = get_primary_key_index(primary_key_options, table_name) # prompt user if necessary
+def process_table(request, table_name, entity, primary_key_options, is_weak = False, is_relationship = False):
+    primary_key_index = get_primary_key_index(request, primary_key_options, table_name) # prompt user if necessary
+    if isinstance(primary_key_index, HttpResponse):
+       return primary_key_index; 
     primary_key = primary_key_options[primary_key_index]
     assert len(primary_key) > 0
 
@@ -325,19 +367,26 @@ def get_primary_key_options(entity, dominant_entity_table = None):
         options.append(option)
     return options
 
-def get_primary_key_index(primary_key_options, table_name):
+def get_primary_key_index(request, primary_key_options, table_name):
     primary_key_index = 0
     num_options = len(primary_key_options)
     if num_options > 1:
-        prompt = "Which key do you want to use as primary key for " + table_name + ":\n"
+
+        xmlContent = request.session.get('xmlContent');
+
+        # xmlFile = etree.fromstring(xmlContent);
+
+        primaryKeyOptions = [];
         current_index = 0 # For convenience sake, we just use zero-based indexing here for the options
         for primary_key in primary_key_options:
-            prompt += str(current_index) + ". " + get_primary_key_as_string(primary_key) + "\n"
+            primaryKeyOptions.append(get_primary_key_as_string(primary_key))
             current_index = current_index + 1
-        prompt += "Your choice(0 or 1): " # TODO remove when there is GUI
-        primary_key_index = int(prompt_user_for_input(prompt))
-        assert ((primary_key_index >= 0) and (primary_key_index <= num_options)) # Make sure user input a valid index
-        print "\n\nSelected " + get_primary_key_as_string(primary_key_options[primary_key_index]) + " as primary key for " + table_name + "\n\n"
+
+        return render(request, 'choose_key.html', {
+            'table_name': table_name,
+            'uploaded_file_content': xmlContent,
+            'primaryKeyOptions': primaryKeyOptions
+        })
 
     return primary_key_index
 
@@ -355,5 +404,5 @@ def format_foreign_key(foreign_table_name, key):
 # END PROCESSING FUNCTIONS
 
 # START OF MAIN CODE
-tree = ET.parse('full_sample.xml')
-ConvertXmlToJson(tree)
+# tree = ET.parse('full_sample.xml')
+# ConvertXmlToJson(tree)

@@ -6,9 +6,17 @@
   </head>
   <body>
     {% block content %}
-	  <form method="post" action="choosekey" enctype="multipart/form-data">
+	  <form method="post" action="selectedkey" enctype="multipart/form-data">
 	    {% csrf_token %}
-	    Choose your key here:
+	    Choose your key for table [{{table_name}}] here:
+<input type="text" name="tableName" hidden value="{{table_name}}">
+	    <br>
+	    {% for primaryKeyOption in primaryKeyOptions %}
+		    {{ day }}
+		    <input type="radio" name="primaryKeyOption" value="{{forloop.counter0}}"> {{primaryKeyOption}}<br>
+		{% endfor %}
+
+	    <br>
 	    <button type="submit">Next</button>
 	  </form>
 

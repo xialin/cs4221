@@ -98,10 +98,7 @@ def convert_from_xml_nodes(nodes):
         for key in node.findall(XML_KEY):
             keys.append(key.text)
 
-        for x in node.attrib:
-            print x
         if "checked" in node.attrib.keys():
-            print 'found checked'
             node_checked = node.attrib['checked']
 
         result[node_id] = {
@@ -122,15 +119,11 @@ def sort_entities_into_weak_and_strong(entities):
         for attribute in entity[XML_ATTRIBUTES].values():
             if XML_RELATION_ID in attribute:
                 relation_id = attribute[XML_RELATION_ID]
+                print entity[XML_NAME] + ' has relation_id ' + relation_id
                 break
 
-        # is_weak = False
-        # if relation_id is not None:
-        #     for key in entity[XML_KEYS]:
-        #         if relation_id in key:
-        #             is_weak = True
-
         if relation_id is not None:
+            print 'weak: ' + entity[XML_NAME]
             result[TYPE_WEAK].append(entity)
         else:
             result[TYPE_STRONG].append(entity)
@@ -183,6 +176,10 @@ def get_dominant_entity(weak_entity, entities, relationships):
             break
     assert relationship_id is not None
     # TODO(xzhang): deal with true weak entity
+    # print '------- weak_entity:'
+    # print weak_entity[XML_NAME]
+    # print '------- relationship_id:'
+    # print relationship_id
     relationship = relationships[relationship_id]
 
     dominant_entity_id = None
@@ -337,9 +334,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
             relationship_name = relationship_table[TABLE_NAME]
 
             # if relationship has [1,1] we can consider merge to entity
-            min_participation = attribute[XML_MIN]
-            max_participation = attribute[XML_MAX]
-            if min_participation == 1 and max_participation == 1:
+            if relationship["checked"] != "1" and attribute[XML_MIN] == 1 and attribute[XML_MAX] == 1:
                 return prompt_merge_option(request, relationship_name, table_name)
 
             foreign_key = {
@@ -409,7 +404,7 @@ def get_primary_key_options(entity, dominant_entity_table=None):
     options = []
     for key in entity[XML_KEYS]:
         option = []
-        print 'key ' + key
+        # print 'key ' + key
         ids = key.split(",")  # [1] or [2, 3]
         for id in ids:
             if "name" in attributes[id]:
@@ -507,20 +502,22 @@ def merge_relationship_in_xml(tree, merge_table, merge_from, merge_to):
     for node in tree:
         if node.attrib[XML_NAME] == merge_from:
             relation_node = node
+            relation_node.set("checked", "1")
         if node.attrib[XML_NAME] == merge_to:
             base_node = node
 
+    next_id = 0
     relation_id = relation_node.attrib[XML_ID]
     for attribute in base_node.findall(XML_ATTRIBUTE):
-        print attribute.attrib[XML_ID]
         if XML_RELATION_ID in attribute.attrib and relation_id == attribute.attrib[XML_RELATION_ID]:
             print 'skip adding relation_id'
             return tree  # relation_id already defined
+        if attribute.attrib[XML_ID] > next_id:
+            next_id = attribute.attrib[XML_ID]
 
     relation_attribute = ET.SubElement(base_node, XML_ATTRIBUTE)
-    relation_attribute.set(XML_ID, str(len(base_node.findall(XML_ATTRIBUTE))))
+    relation_attribute.set(XML_ID, str(int(next_id) + 1))
     relation_attribute.set(XML_RELATION_ID, relation_id)
-    tree.remove(relation_node)
 
     return tree
 

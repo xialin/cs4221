@@ -6,8 +6,6 @@ from django.http import JsonResponse
 
 '''
 TODO:
-- clean up constants
-- handle relationship cardinality (prompt user when merge option is available)
 - add ER diagram validation logic
 - use class so we can use entities, relationships, processed_tables as global variables
 - if subset of a candidate key is unique, subset can be primary key as well
@@ -43,7 +41,6 @@ XML_ATTRIBUTES = 'attributes'
 XML_CHECKED = 'checked'
 
 
-# START INTERFACE TO VIEW
 def convert_xml_to_json(request, tree):
     # Prep Data Structures
     entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
@@ -55,16 +52,10 @@ def convert_xml_to_json(request, tree):
 
     # Start Processing
     processed_tables = process_strong_entities(request, strong_entities, {})
-    if isinstance(processed_tables, HttpResponse):
-            return processed_tables
 
     processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
-    if isinstance(processed_tables, HttpResponse):
-            return processed_tables
 
     processed_tables = process_relationships(request, relationships, entities, processed_tables)
-    if isinstance(processed_tables, HttpResponse):
-            return processed_tables
 
     for table in processed_tables.values():
         table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
@@ -73,15 +64,51 @@ def convert_xml_to_json(request, tree):
     # print output_json
     return JsonResponse(processed_tables)
 
-    # return render(request, 'finaljson.html', {
-    #     output_json: output_json
-    # })
+
+# START VALIDATION
+def validate_xml(request, tree):
+    xml_content = request.session.get('xmlContent')
+
+    # select primary key
+    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
+    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
+    for entity in entities.values():
+        if len(entity[XML_KEYS]) > 1:
+            return prompt_choose_key_option(request, entity[XML_NAME], xml_content,
+                                            get_primary_key_display_options(entity, relationships))
+
+    # merge 1-1 table
+    for relationship in relationships.values():
+        if relationship["checked"] == "1":
+            continue  # skip relationship object checked
+        for attribute in relationship[XML_ATTRIBUTES].values():
+            if XML_MIN in attribute and XML_MAX in attribute \
+                    and attribute[XML_MIN] == "1" and attribute[XML_MAX] == "1":
+                merge_from = relationship[XML_NAME]
+                merge_to = entities[attribute[XML_ENTITY_ID]][XML_NAME]
+                return prompt_merge_option(request, merge_to, merge_from)
+
+    # TODO: remove redundant primary key in relation table
+    return convert_xml_to_json(request, tree)
+    # return prompt_merge_option(request, "foo", "bar")
 
 
-def prompt_user_for_input(prompt):
-    user_input = raw_input(prompt)
-    return user_input
-# END INTERFACE TO VIEW
+def get_primary_key_display_options(entity, relationships):
+    attributes = entity[XML_ATTRIBUTES]
+    options = []
+    for key in entity[XML_KEYS]:
+        option = []
+        ids = key.split(",")  # [1] or [2, 3]
+        for key_id in ids:
+            if "name" in attributes[key_id]:
+                option.append(attributes[key_id][XML_NAME])
+            else:  # if there's no "name" inside the attribute, it MUST have a relation_id
+                assert (XML_RELATION_ID in attributes[key_id])
+                relationship = relationships[attributes[key_id][XML_RELATION_ID]]
+                option.append(relationship[XML_NAME])
+        options.append(option)
+    return options
+# END VALIDATION
 
 
 # START DATA PREP HELPER FUNCTIONS
@@ -91,6 +118,7 @@ def convert_from_xml_nodes(nodes):
         node_id = node.attrib[XML_ID]
         node_name = node.attrib[XML_NAME]
         node_checked = '0'
+        node_merged = '0'
         attributes = {}
         keys = []
         for attribute in node.findall(XML_ATTRIBUTE):
@@ -100,11 +128,14 @@ def convert_from_xml_nodes(nodes):
 
         if "checked" in node.attrib.keys():
             node_checked = node.attrib['checked']
+        if "merged" in node.attrib.keys():
+            node_merged = node.attrib['merged']
 
         result[node_id] = {
             "id":         node_id,
             "name":       node_name,
             "checked":    node_checked,
+            "merged":     node_merged,
             "attributes": attributes,
             "keys":       keys
         }
@@ -134,9 +165,23 @@ def sort_entities_into_weak_and_strong(entities):
 # START PROCESSING FUNCTIONS
 def process_strong_entities(request, strong_entities, processed_tables):
     for strong_entity in strong_entities:
-        processed_tables = process_strong_entity_into_table(request, strong_entity, processed_tables)
+        processed_tables = process_strong_entity(request, strong_entity, processed_tables)
         if isinstance(processed_tables, HttpResponse):
-            return processed_tables;  
+            return processed_tables
+    return processed_tables
+
+
+def process_strong_entity(request, strong_entity, processed_tables):
+    table_name = strong_entity[XML_NAME]
+
+    primary_key_options = get_primary_key_options(strong_entity)
+    assert len(primary_key_options) == 1
+
+    processed_table = process_entity_table(request, strong_entity, primary_key_options)
+    if isinstance(processed_table, HttpResponse):
+        return processed_table
+
+    processed_tables[table_name] = processed_table
     return processed_tables
 
 
@@ -148,68 +193,54 @@ def process_weak_entities(request, weak_entities, entities, relationships, proce
         # TODO(xzhang): check if relation_id is part of primary key
         stack = [weak_entity]
         while len(stack) > 0:
-            temp_weak_entity = stack.pop()
+            current_entity = stack.pop()
 
-            dominant_entity = get_dominant_entity(temp_weak_entity, entities, relationships)
-            if is_processed(dominant_entity, processed_tables):
-                # Once we have a dominant entity that's been processed,
-                # we have what we need to process the weak entity
-                dominant_entity_table = processed_tables[dominant_entity[TABLE_NAME]]
-                # print "processing " + temp_weak_entity[XML_NAME]
-                processed_tables = process_weak_entity_into_table(request, temp_weak_entity, dominant_entity_table,
-                                                                  processed_tables)
+            dependent_entity = get_dependent_entity(current_entity, entities, relationships)
+            if is_processed(dependent_entity, processed_tables):
+                dependent_entity_table = processed_tables[dependent_entity[TABLE_NAME]]
+                processed_tables = process_weak_entity(request, current_entity, dependent_entity_table,
+                                                       processed_tables)
             else:
-                if dominant_entity in stack:
+                if dependent_entity in stack:
                     # TODO: show circular reference error message
                     return
                 else:
-                    stack.append(temp_weak_entity)
-                    stack.append(dominant_entity)
+                    stack.append(current_entity)
+                    stack.append(dependent_entity)
     return processed_tables
 
 
-def get_dominant_entity(weak_entity, entities, relationships):
+def get_dependent_entity(weak_entity, entities, relationships):
     relationship_id = None
     for attribute in weak_entity[XML_ATTRIBUTES].values():
         if XML_RELATION_ID in attribute:
             relationship_id = attribute[XML_RELATION_ID]
             break
     assert relationship_id is not None
-    # TODO(xzhang): deal with true weak entity
-    # print '------- weak_entity:'
-    # print weak_entity[XML_NAME]
-    # print '------- relationship_id:'
-    # print relationship_id
+
     relationship = relationships[relationship_id]
 
-    dominant_entity_id = None
+    dependent_entity_id = None
     for attribute in relationship[TABLE_ATTRIBUTES].values():
-        if attribute[XML_ID] != weak_entity[XML_ID]:
-            dominant_entity_id = attribute[XML_ID]
+        if attribute[XML_ENTITY_ID] != weak_entity[XML_ID]:
+            dependent_entity_id = attribute[XML_ENTITY_ID]
             break
 
-    assert dominant_entity_id is not None
-    dominant_entity = entities[dominant_entity_id]
-    assert dominant_entity is not None
+    assert dependent_entity_id is not None
 
-    return dominant_entity
+    dependent_entity = entities[dependent_entity_id]
+    assert dependent_entity is not None
 
-
-def process_strong_entity_into_table(request, strong_entity, processed_tables):
-    table_name = strong_entity[XML_NAME]
-    primary_key_options = get_primary_key_options(strong_entity)
-    processed_table = process_entity_table(request, table_name, strong_entity, primary_key_options, False)
-    if isinstance(processed_table, HttpResponse):
-        return processed_table
-
-    processed_tables[table_name] = processed_table
-    return processed_tables
+    # print '--------------------------------------------'
+    # print 'weak entity: ' + weak_entity[XML_NAME]
+    # print 'dependent on: ' + dependent_entity[XML_NAME]
+    return dependent_entity
 
 
-def process_weak_entity_into_table(request, weak_entity, dominant_entity_table, processed_tables):
+def process_weak_entity(request, weak_entity, dependent_entity_table, processed_tables):
     table_name = weak_entity[XML_NAME]
-    primary_key_options = get_primary_key_options(weak_entity, dominant_entity_table)
-    processed_table = process_entity_table(request, table_name, weak_entity, primary_key_options, True)
+    primary_key_options = get_primary_key_options(weak_entity, dependent_entity_table)
+    processed_table = process_entity_table(request, weak_entity, primary_key_options, dependent_entity_table)
     if isinstance(processed_table, HttpResponse):
         return processed_table
 
@@ -217,7 +248,9 @@ def process_weak_entity_into_table(request, weak_entity, dominant_entity_table, 
     return processed_tables
 
 
-def process_entity_table(request, table_name, entity, primary_key_options, is_weak=False):
+def process_entity_table(request, entity, primary_key_options, dependent_table=None):
+    table_name = entity[XML_NAME]
+
     primary_key_index = get_primary_key_index(request, primary_key_options, table_name)  # prompt user if necessary
     if isinstance(primary_key_index, HttpResponse):
         return primary_key_index
@@ -225,27 +258,22 @@ def process_entity_table(request, table_name, entity, primary_key_options, is_we
     primary_key = primary_key_options[primary_key_index]
     assert len(primary_key) > 0
 
-    attribute_names = get_attribute_names(entity)
-    unique = get_unique_non_primary_attributes(attribute_names, primary_key, primary_key_options)
+    attribute_list = get_name_attributes(entity)
+    foreign_keys = []
+    if dependent_table is not None:
+        foreign_keys.append(get_foreign_attributes(dependent_table))
 
-    foreign_keys = []  # strong entities should not have any foreign keys
-    print 'process table: ' + table_name
-    if is_weak:
-        print table_name + ' is weak entity'
-        # TODO(xzhang):
-        # - there is a bug here. if relationship is not primary key, then it is not included as foreign key
-        # - foreign key should follow data structure instead of string concatenation
-        foreign_keys = get_foreign_attributes(attribute_names, primary_key)
-        # TODO: If user chose to use the dominant entity's primary key as part of the weak entity's primary key,
-        # we need to include those foreign keys as attributes and include them in the "foreign_keys" section.
-        # Else, we shouldn't???
-        if len(foreign_keys) > 0:
-            for foreign_key in foreign_keys:
-                attribute_names.append(foreign_key)
+    unique = get_unique_attributes(primary_key, foreign_keys)
+
+    # add foreign keys into attributes
+    for foreign_key in foreign_keys:
+        for attr in foreign_key[TABLE_REFERENCES]:
+            if attr not in attribute_list:
+                attribute_list.append(attr)
 
     processed_table = {
         TABLE_NAME: table_name,
-        TABLE_ATTRIBUTES: attribute_names,
+        TABLE_ATTRIBUTES: attribute_list,
         TABLE_PRIMARY_KEY: primary_key,
         TABLE_FOREIGN_KEYS: foreign_keys,
         TABLE_UNIQUE: unique
@@ -257,6 +285,10 @@ def process_entity_table(request, table_name, entity, primary_key_options, is_we
 def process_relationships(request, relationships, entities, processed_tables):
     for relationship in relationships.values():
         if is_processed(relationship, processed_tables):
+            continue
+
+        if relationship["merged"] == "1":
+            print 'skip relationship ' + relationship[XML_NAME]
             continue
 
         # TODO: replace all asserts to proper error prompt
@@ -369,32 +401,42 @@ def is_processed(entity, processed_tables):
     return entity[XML_NAME] in processed_tables.keys()
 
 
-def get_attribute_names(entity):
+def get_name_attributes(entity):
+    """
+    properties belong to the entity, not foreign key
+    :param entity:
+    :return:
+    """
     entity_attribute_names = []
     for attribute in entity[TABLE_ATTRIBUTES].values():
         if XML_NAME in attribute:
             entity_attribute_names.append(attribute[XML_NAME])
-    # assert len(entity_attribute_names) > 0
     return entity_attribute_names
 
 
-def get_foreign_attributes(entity_attribute_names, primary_key):  # Could be empty
-    # get the attributes in primary key which are not in the entity's attributes
-    result = filter(lambda x: x not in entity_attribute_names, primary_key)
-    return result
+def get_foreign_attributes(foreign_table):
+    foreign_key = {
+        TABLE_ENTITY: foreign_table[TABLE_NAME],
+        TABLE_REFERENCES: {}
+    }
+    for key in foreign_table[TABLE_PRIMARY_KEY]:
+        new_key_name = format_foreign_key(foreign_table[TABLE_NAME], key)
+        foreign_key[TABLE_REFERENCES][new_key_name] = key
+
+    return foreign_key
 
 
-def get_unique_non_primary_attributes(entity_attribute_names, primary_key, primary_key_options):
+def get_unique_attributes(primary_key, foreign_keys):
     """
-    # Construct a flat array of attribute names appearing in the primary key options
+    Construct a flat array of attribute names appearing in the primary key options
     """
-    primary_key_options_attributes = []
-    for option in primary_key_options:
-        for key in option:
-            primary_key_options_attributes.append(key)
-
-    result = filter(lambda x: x not in primary_key and x in primary_key_options_attributes, entity_attribute_names)
-    return result
+    unique = []
+    for foreign_key in foreign_keys:
+        print foreign_key
+        for attr in foreign_key[TABLE_REFERENCES]:
+            if attr not in primary_key:
+                unique.append(attr)
+    return unique
 
 
 def get_primary_key_options(entity, dominant_entity_table=None):
@@ -425,9 +467,7 @@ def get_primary_key_index(request, primary_key_options, table_name):
     primary_key_index = 0
     num_options = len(primary_key_options)
     if num_options > 1:
-
         xml_content = request.session.get('xmlContent')
-
         options = []
         current_index = 0 # For convenience sake, we just use zero-based indexing here for the options
         for primary_key in primary_key_options:
@@ -459,6 +499,21 @@ def format_foreign_key(foreign_table_name, key):
 
 
 # START USER INTERACTION
+def prompt_user_for_input(prompt):
+    user_input = raw_input(prompt)
+    return user_input
+
+
+def prompt_choose_key_option(request, table_name, xml_content, options):
+    print "prompt_choose_key_option for table " + table_name
+
+    return render(request, 'choose_key.html', {
+        'table_name': table_name,
+        'uploaded_file_content': xml_content,
+        'primaryKeyOptions': options
+    })
+
+
 def prompt_merge_option(request, merge_to, merge_from):
     print "prompt_merge_option from " + merge_from + " to " + merge_to
 
@@ -496,6 +551,7 @@ def merge_relationship_in_xml(tree, merge_table, merge_from, merge_to):
         for node in tree:
             if node.attrib[XML_NAME] == merge_from:
                 node.set("checked", "1")
+                node.set("merged", "0")
         return tree
 
     base_node = None
@@ -505,6 +561,7 @@ def merge_relationship_in_xml(tree, merge_table, merge_from, merge_to):
         if node.attrib[XML_NAME] == merge_from:
             relation_node = node
             relation_node.set("checked", "1")
+            relation_node.set("merged", "1")
         if node.attrib[XML_NAME] == merge_to:
             base_node = node
 

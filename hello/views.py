@@ -3,7 +3,7 @@ from django.conf import settings
 import textwrap
 
 from er_to_json_converter import convert_xml_to_json
-from er_to_json_converter import update_primary_key_in_xml, merge_relationship_in_xml
+from er_to_json_converter import update_primary_key_in_xml, merge_relationship_in_xml, validate_xml
 
 import lxml.etree as etree
 from django.http import HttpResponse
@@ -78,7 +78,7 @@ def choose_key(request):
     if request.method == 'POST' and request.session.get('xmlContent'):
         xml_content = request.session.get('xmlContent')
         xml_file = etree.fromstring(xml_content)
-        return convert_xml_to_json(request, xml_file)
+        return validate_xml(request, xml_file)
 
         # return render(request, 'choose_key.html', {
         #     'uploaded_file_content': "test" + etree.tostring(xmlFile, pretty_print = True)
@@ -138,7 +138,7 @@ def proceed_next(request):
 
             request.session['xmlContent'] = file_content
             request.session.save()
-            return convert_xml_to_json(request, tree)
+            return validate_xml(request, tree)
 
         elif merge_table != -1 and merge_from is not None and merge_to is not None:
             """
@@ -149,7 +149,7 @@ def proceed_next(request):
 
             request.session['xmlContent'] = file_content
             request.session.save()
-            return convert_xml_to_json(request, tree)
+            return validate_xml(request, tree)
 
         else:
             # TODO(UI): add an error page and allow restart

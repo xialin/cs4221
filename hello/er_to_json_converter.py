@@ -217,7 +217,7 @@ def process_weak_entity_into_table(request, weak_entity, dominant_entity_table, 
     return processed_tables
 
 
-def process_entity_table(request, table_name, entity, primary_key_options, is_weak=False, is_relationship=False):
+def process_entity_table(request, table_name, entity, primary_key_options, is_weak=False):
     primary_key_index = get_primary_key_index(request, primary_key_options, table_name)  # prompt user if necessary
     if isinstance(primary_key_index, HttpResponse):
         return primary_key_index
@@ -225,16 +225,18 @@ def process_entity_table(request, table_name, entity, primary_key_options, is_we
     primary_key = primary_key_options[primary_key_index]
     assert len(primary_key) > 0
 
-    attribute_names = []
-    if not is_relationship:
-        attribute_names = get_attribute_names(entity)
-
+    attribute_names = get_attribute_names(entity)
     unique = get_unique_non_primary_attributes(attribute_names, primary_key, primary_key_options)
 
     foreign_keys = []  # strong entities should not have any foreign keys
-    if is_weak or is_relationship:
+    print 'process table: ' + table_name
+    if is_weak:
+        print table_name + ' is weak entity'
+        # TODO(xzhang):
+        # - there is a bug here. if relationship is not primary key, then it is not included as foreign key
+        # - foreign key should follow data structure instead of string concatenation
         foreign_keys = get_foreign_attributes(attribute_names, primary_key)
-        # If user chose to use the dominant entity's primary key as part of the weak entity's primary key,
+        # TODO: If user chose to use the dominant entity's primary key as part of the weak entity's primary key,
         # we need to include those foreign keys as attributes and include them in the "foreign_keys" section.
         # Else, we shouldn't???
         if len(foreign_keys) > 0:

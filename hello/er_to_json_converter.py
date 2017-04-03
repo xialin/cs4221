@@ -37,6 +37,8 @@ XML_RELATION_ID = 'relation_id'
 XML_MIN = 'min_participation'
 XML_MAX = 'max_participation'
 XML_KEYS = 'keys'
+XML_UNIQUE_KEY = 'uniqueKey'
+XML_UNIQUE_KEYS = 'uniqueKeys'
 XML_ATTRIBUTES = 'attributes'
 XML_CHECKED = 'checked'
 
@@ -121,10 +123,14 @@ def convert_from_xml_nodes(nodes):
         node_merged = '0'
         attributes = {}
         keys = []
+        uniqueKeys = [];
+        
         for attribute in node.findall(XML_ATTRIBUTE):
             attributes[attribute.attrib[XML_ID]] = attribute.attrib
         for key in node.findall(XML_KEY):
             keys.append(key.text)
+        for key in node.findall(XML_UNIQUE_KEY):
+            uniqueKeys.append(key.text)
 
         if "checked" in node.attrib.keys():
             node_checked = node.attrib['checked']
@@ -137,7 +143,8 @@ def convert_from_xml_nodes(nodes):
             "checked":    node_checked,
             "merged":     node_merged,
             "attributes": attributes,
-            "keys":       keys
+            "keys":       keys,
+            "uniqueKeys": uniqueKeys
         }
     return result
 
@@ -263,7 +270,8 @@ def process_entity_table(request, entity, primary_key_options, dependent_table=N
     if dependent_table is not None:
         foreign_keys.append(get_foreign_attributes(dependent_table))
 
-    unique = get_unique_attributes(primary_key, foreign_keys)
+    # unique = get_unique_attributes(primary_key, foreign_keys)
+    unique = get_unique_key_options(entity, dependent_table)
 
     # add foreign keys into attributes
     for foreign_key in foreign_keys:
@@ -438,6 +446,29 @@ def get_unique_attributes(primary_key, foreign_keys):
                 unique.append(attr)
     return unique
 
+def get_unique_key_options(entity, dominant_entity_table=None):
+    """
+    We use this function for both weak and strong entities. If weak entity, we MUST provide a dominant_entity_table
+    """
+    print 'get unqiue key options for ' + entity[XML_NAME]
+    attributes = entity[XML_ATTRIBUTES]
+    options = []
+    for key in entity[XML_UNIQUE_KEYS]:
+        option = []
+        # print 'key ' + key
+        ids = key.split(",")  # [1] or [2, 3]
+        for id in ids:
+            if "name" in attributes[id]:
+                option.append(attributes[id]["name"])
+            else:  # if there's no "name" inside the attribute, it MUST have a relation_id
+                # assert (dominant_entity_table is not None)
+                assert (XML_RELATION_ID in attributes[id])
+                dominant_entity_table_name = dominant_entity_table[TABLE_NAME]
+                for key in dominant_entity_table[TABLE_PRIMARY_KEY]:
+                    option.append(format_foreign_key(dominant_entity_table_name, key))
+        options.append(option)
+    return options
+
 
 def get_primary_key_options(entity, dominant_entity_table=None):
     """
@@ -531,13 +562,10 @@ def update_primary_key_in_xml(tree, table_name, primary_key_option):
             continue
         key_nodes = node.findall("key")
         selected_key_node = None
+
         for i, key_node in enumerate(key_nodes):
-            if i == int(primary_key_option):
-                selected_key_node = key_node
-                break
-        for elem in key_nodes:
-            node.remove(elem)
-        node.append(selected_key_node)
+            if i != int(primary_key_option):
+                key_node.tag=XML_UNIQUE_KEY
     return tree
 
 

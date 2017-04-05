@@ -28,6 +28,8 @@ class HomePageView(View):
         ''')
         return HttpResponse(response_text)
 
+def homePage(request):
+    return render(request, 'index.html', {})
 
 def upload(request):
     """

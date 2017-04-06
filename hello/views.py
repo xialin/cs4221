@@ -51,8 +51,14 @@ def upload(request):
                 'uploaded_file_error': uploaded_file_error
             })
 
-        er_tree = etree.parse(er_file)
-        file_content = etree.tostring(er_tree, pretty_print=True)
+        try: 
+            er_tree = etree.parse(er_file)
+            file_content = etree.tostring(er_tree, pretty_print=True)
+
+        except Exception:
+           return render(request, 'upload.html', {
+                'uploaded_file_error': "The uploaded xml is invalid."
+            }) 
 
         request.session['xmlContent'] = file_content
         request.session.save()

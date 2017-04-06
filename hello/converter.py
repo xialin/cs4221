@@ -96,10 +96,11 @@ def validate_xml(request, tree):
                     merge_from = relationship[XML_NAME]
                     merge_to = entities[attribute[XML_ENTITY_ID]][XML_NAME]
                     return prompt_merge_option(request, merge_to, merge_from)
+
     except Exception:
-           return render(request, 'upload.html', {
-                'uploaded_file_error': "Unexpected error"
-            }) 
+        return render(request, 'upload.html', {
+            'uploaded_file_error': "Unexpected error"
+        })
 
     return convert_xml_to_json(request, tree)
 
@@ -110,38 +111,39 @@ def validate_xml(request, tree):
 
 
 def convert_xml_to_json(request, tree):
-    try:
-        # Prep Data Structures
-        entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
-        entities_list = sort_entities_into_weak_and_strong(entities)
-        weak_entities = entities_list[TYPE_WEAK]
-        strong_entities = entities_list[TYPE_STRONG]
+    # try:
+    # Prep Data Structures
+    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
+    entities_list = sort_entities_into_weak_and_strong(entities)
+    weak_entities = entities_list[TYPE_WEAK]
+    strong_entities = entities_list[TYPE_STRONG]
 
-        relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
+    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
 
-        # Start Processing
-        processed_tables = process_strong_entities(request, strong_entities, {})
+    # Start Processing
+    processed_tables = process_strong_entities(request, strong_entities, {})
 
-        processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
+    processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
 
-        if isinstance(processed_tables, HttpResponse):
-            return processed_tables
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
 
-        processed_tables = process_relationships(request, relationships, entities, processed_tables)
+    processed_tables = process_relationships(request, relationships, entities, processed_tables)
 
-        if isinstance(processed_tables, HttpResponse):
-            return processed_tables
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
 
-        for table in processed_tables.values():
-            table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
+    for table in processed_tables.values():
+        table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
 
-        output_json = json.dumps(processed_tables, indent=4)
-        request.session['output_json'] = output_json
-        request.session.save()
-    except Exception:
-           return render(request, 'upload.html', {
-                'uploaded_file_error': "Unexpected error"
-            }) 
+    output_json = json.dumps(processed_tables, indent=4)
+    request.session['output_json'] = output_json
+    request.session.save()
+
+    # except Exception:
+    #     return render(request, 'upload.html', {
+    #         'uploaded_file_error': "Unexpected error"
+    #     })
     return render(request, 'display_result.html', {
                 'output_json': output_json
             })
@@ -410,9 +412,10 @@ def get_dependent_relationship(relationship, relationships):
 
 def process_relationship_into_table(request, relationship, processed_tables, entities, relationships):
     table_name = relationship[XML_NAME]
+    attributes = {}
     primary_key = []
     foreign_keys = []
-    attributes = {}
+    unique = []
     for attribute in relationship[XML_ATTRIBUTES].values():
         if XML_ENTITY_ID in attribute:
             entity_table = processed_tables[entities[attribute[XML_ENTITY_ID]][XML_NAME]]
@@ -427,20 +430,17 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: entity_name, 
                 TABLE_REFERENCES: {}
             }
-            attributesMap = entity_table[XML_ATTRIBUTES]
+            attributes_map = entity_table[XML_ATTRIBUTES]
             for key in entity_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(entity_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
-                
-                attr = attributesMap[key]
-                attrType = attr[XML_ATTRIBUTE_TYPE]
-                if not attrType:
-                    attrType = "string"
-                attributes[new_key_name] = { "type": attrType,
-                "references": {
-                  entity_table[TABLE_NAME]: key
-                }}
+
+                attr = attributes_map[key]
+                attr_type = attr[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attr else "string"
+                attributes[new_key_name] = {
+                    "type": attr_type
+                }
             foreign_keys.append(foreign_key)
 
         if XML_RELATION_ID in attribute:
@@ -455,36 +455,31 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: relationship_name, 
                 TABLE_REFERENCES: {}
             }
-            attributesMap = relationship_table[XML_ATTRIBUTES]
+            attributes_map = relationship_table[XML_ATTRIBUTES]
             for key in relationship_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(relationship_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
 
-                attr = attributesMap[key]
-                attrType = attr[XML_ATTRIBUTE_TYPE]
-                if not attrType:
-                    attrType = "string"
-                attributes[new_key_name] = { "type": attrType,
-                "references": {
-                  relationship_table[TABLE_NAME]: key
-                }}
-
+                attr = attributes_map[key]
+                attr_type = attr[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attr else "string"
+                attributes[new_key_name] = {
+                    "type": attr_type
+                }
             foreign_keys.append(foreign_key)
 
         if XML_NAME in attribute:
-            if XML_ATTRIBUTE_TYPE in attribute:
-                attrType = attribute[XML_ATTRIBUTE_TYPE]
-            else: 
-                attrType = "string"
-            attributes[attribute[XML_NAME]] = { "type": attrType}
+            attr_type = attribute[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attribute else "string"
+            attributes[attribute[XML_NAME]] = {
+                "type": attr_type
+            }
 
     processed_table = {
         TABLE_NAME:         table_name,
         TABLE_ATTRIBUTES:   attributes,
         TABLE_PRIMARY_KEY:  primary_key,
-        # TABLE_FOREIGN_KEYS: foreign_keys,
-        # TABLE_UNIQUE:       unique
+        TABLE_FOREIGN_KEYS: foreign_keys,
+        TABLE_UNIQUE:       unique
     }
     processed_tables[table_name] = processed_table
     return processed_tables
@@ -503,10 +498,8 @@ def get_name_attributes(entity):
     entity_attribute_names = {}
     for attribute in entity[TABLE_ATTRIBUTES].values():
         if XML_NAME in attribute:
-            attrType = attribute[XML_ATTRIBUTE_TYPE]
-            if not attrType:
-                attrType = "string"
-            entity_attribute_names[attribute[XML_NAME]] = {"type": attrType}
+            attr_type = attribute[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attribute else "string"
+            entity_attribute_names[attribute[XML_NAME]] = {"type": attr_type}
     return entity_attribute_names
 
 
@@ -516,18 +509,19 @@ def get_foreign_attributes(foreign_table):
         TABLE_REFERENCES: {}
     }
 
-    attributesMap = foreign_table[XML_ATTRIBUTES]
+    attributes_map = foreign_table[XML_ATTRIBUTES]
     for key in foreign_table[TABLE_PRIMARY_KEY]:
         new_key_name = format_foreign_key(foreign_table[TABLE_NAME], key)
-        attribute = attributesMap[key]
-        attrType = attribute[XML_ATTRIBUTE_TYPE]
-        if not attrType:
-            attrType = "string"
-        foreign_key[TABLE_REFERENCES][new_key_name] = { "type": attrType,
-        "references": {
-          foreign_table[TABLE_NAME]: key
+        attribute = attributes_map[key]
+        attr_type = attribute[XML_ATTRIBUTE_TYPE]
+        if not attr_type:
+            attr_type = "string"
+        foreign_key[TABLE_REFERENCES][new_key_name] = {
+            "type": attr_type,
+            "references": {
+                foreign_table[TABLE_NAME]: key
+            }
         }
-}
 
     return foreign_key
 
@@ -544,11 +538,12 @@ def get_unique_attributes(primary_key, foreign_keys):
                 unique.append(attr)
     return unique
 
+
 def get_unique_key_options(entity, dominant_entity_table=None):
     """
     We use this function for both weak and strong entities. If weak entity, we MUST provide a dominant_entity_table
     """
-    print 'get unqiue key options for ' + entity[XML_NAME]
+    print 'get unique key options for ' + entity[XML_NAME]
     attributes = entity[XML_ATTRIBUTES]
     options = []
     for key in entity[XML_UNIQUE_KEYS]:
@@ -704,8 +699,3 @@ def merge_relationship_in_xml(tree, merge_table, merge_from, merge_to):
     relation_attribute.set(XML_RELATION_ID, relation_id)
 
     return tree
-
-
-# START OF MAIN CODE
-# tree = ET.parse('full_sample.xml')
-# ConvertXmlToJson(tree)

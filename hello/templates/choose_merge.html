@@ -1,28 +1,33 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Merge table</title>
-  </head>
-  <body>
-    {% block content %}
-	  <form method="post" action="proceed_next" enctype="multipart/form-data">
+{% extends "base.html" %}
+{% load staticfiles%}
+
+{% block title %}Merge table{% endblock %}
+
+{% block content %}
+  <form method="post" action="proceed_next" enctype="multipart/form-data">
 	    {% csrf_token %}
-	    Do you want to merge [{{merge_from}}] to [{{merge_to}}]?
-		<input type="text" hidden name="merge_from" value="{{merge_from}}">
-		<input type="text" hidden name="merge_to" value="{{merge_to}}">
-	    <br>
-	    <input type="radio" name="merge_table" value="1"> Yes<br>
-	    <input type="radio" name="merge_table" value="0"> No<br>
-	    <button type="submit">Next</button>
-	  </form>
+	    <h4 class="text-center" style="color:#717171;"><strong>Do you want to merge [{{merge_from}}] to [{{merge_to}}]?</strong></h4>
+	    <input type="text" hidden name="merge_from" value="{{merge_from}}">
+	    <input type="text" hidden name="merge_to" value="{{merge_to}}">
+          <div class="row" style="width: 320px; margin: 0px auto 0 auto;">
+            <input type="radio" name="merge_table" value="1" align="middle" style="color:#717171;"> Yes<br>
+      	    <input type="radio" name="merge_table" value="0" align="middle" style="color:#717171;"> No<br>
+          </div>
+          <div class="row" style="width: 100px; margin: 0px auto 0 auto;">
+            <button type="submit" class="btn btn-lg btn-default">Next</button>
+          </div>
+  </form>
 
-	  {% if uploaded_file_content %}
-	    <p>Below is uploaded file content:</p>
-	    <textarea disabled="disabled" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
-	  {% endif %}
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      {% if uploaded_file_content %}
+         <h5 class="text-left" style="color:#717171;"><strong>Below is uploaded file content:</strong></h5>
+         <textarea disabled="disabled" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
+      {% endif %}
+      {% if uploaded_file_error %}
+         <p>Error occurs when uploading file: {{uploaded_file_error}}</p>
+      {% endif %}
+    </div>
+  </div>
 
-	  <p><a href="{% url 'home' %}">Return to home</a></p>
-	{% endblock %}
-  </body>
-</html>
+{% endblock %}

@@ -1,30 +1,36 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Choose key</title>
-  </head>
-  <body>
-    {% block content %}
-	  <form method="post" action="proceed_next" enctype="multipart/form-data">
+{% extends "base.html" %}
+{% load staticfiles%}
+
+{% block title %}Choose key{% endblock %}
+
+{% block content %}
+
+  <form method="post" action="proceed_next" enctype="multipart/form-data">
 	    {% csrf_token %}
-	    Choose your key for table [{{table_name}}] here:
-		<input type="text" name="tableName" hidden value="{{table_name}}">
-	    <br>
+	    <h4 class="text-center" style="color:#717171;"><strong>Choose your key for table [{{table_name}}] here:</strong></h4>
+          <div class="row" style="width: 320px; margin: 0px auto 0 auto;">
+            <input type="text" name="tableName" hidden value="{{table_name}}" style="color:#717171;">
 	    {% for primaryKeyOption in primaryKeyOptions %}
-		    {{ day }}
-		    <input type="radio" name="primaryKeyOption" value="{{forloop.counter0}}"> {{primaryKeyOption}}<br>
-		{% endfor %}
+	    {{ day }}
+      	    <input type="radio" name="primaryKeyOption" value="{{forloop.counter0}}" style="color:#717171;"> {{primaryKeyOption}}<br>
+      	    {% endfor %}
 	    <br>
-	    <button type="submit">Next</button>
-	  </form>
+          </div>
+          <div class="row" style="width: 100px; margin: 0px auto 0 auto;">
+            <button type="submit" class="btn btn-lg btn-default">Next</button>
+          </div>
+  </form>
 
-	  {% if uploaded_file_content %}
-	    <p>Below is uploaded file content:</p>
-	    <textarea disabled="disabled" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
-	  {% endif %}
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      {% if uploaded_file_content %}
+         <h5 class="text-left" style="color:#717171;"><strong>Below is uploaded file content:</strong></h5>
+         <textarea disabled="disabled" style="width: 100%; height: 500px">{{uploaded_file_content}}</textarea>
+      {% endif %}
+      {% if uploaded_file_error %}
+         <p>Error occurs when uploading file: {{uploaded_file_error}}</p>
+      {% endif %}
+    </div>
+  </div>
 
-	  <p><a href="{% url 'home' %}">Return to home</a></p>
-	{% endblock %}
-  </body>
-</html>
+{% endblock %}

@@ -9,15 +9,12 @@ TODO:
 - add ER diagram validation logic
 - use class so we can use entities, relationships, processed_tables as global variables
 - if subset of a candidate key is unique, subset can be primary key as well
-
-Integration TODO:
-- replace error with UI (?)
-- replace console input with UI (/)
 '''
 
 TYPE_STRONG = 'strong'
 TYPE_WEAK = 'weak'
 
+# keys used in JSON Schema
 TABLE_NAME = 'name'
 TABLE_ATTRIBUTES = 'attributes'
 TABLE_PRIMARY_KEY = 'primary_key'
@@ -26,6 +23,7 @@ TABLE_UNIQUE = 'unique'
 TABLE_ENTITY = "entity"
 TABLE_REFERENCES = "references"
 
+# keys used in XML objects
 XML_OBJ_ENTITY = 'entity'
 XML_OBJ_RELATIONSHIP = 'relationship'
 XML_KEY = 'key'
@@ -80,6 +78,21 @@ def convert_xml_to_json(request, tree):
 def validate_xml(request, tree):
     xml_content = request.session.get('xmlContent')
 
+    # basic check:
+    for child in tree:
+        # only entity and relationship object is recognised
+        if child.tag != 'entity' and child.tag != 'relationship':
+            return render(request, 'upload.html', {
+                'uploaded_file_error': 'Invalid object type [' + child.tag + ']. This file can only contain entity or '
+                                                                             'relationship object '
+            })
+        # each object contains only valid tags ['attribute', 'key', 'uniqueKey', 'foreignKey']
+        for element in child:
+            if element.tag not in ['attribute', 'key', 'uniqueKey', 'foreignKey']:
+                return render(request, 'upload.html', {
+                    'uploaded_file_error': '[' + child.attrib[XML_NAME] + '] has invalid tag "' + element.tag + '"!'
+                })
+
     # select primary key
     entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
     relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
@@ -105,7 +118,6 @@ def validate_xml(request, tree):
 
     # TODO: remove redundant primary key in relation table
     return convert_xml_to_json(request, tree)
-    # return prompt_merge_option(request, "foo", "bar")
 
 
 def get_primary_key_display_options(entity, relationships):
@@ -136,14 +148,14 @@ def convert_from_xml_nodes(nodes):
         node_merged = '0'
         attributes = {}
         keys = []
-        uniqueKeys = [];
+        unique_keys = []
         
         for attribute in node.findall(XML_ATTRIBUTE):
             attributes[attribute.attrib[XML_ID]] = attribute.attrib
         for key in node.findall(XML_KEY):
             keys.append(key.text)
         for key in node.findall(XML_UNIQUE_KEY):
-            uniqueKeys.append(key.text)
+            unique_keys.append(key.text)
 
         if "checked" in node.attrib.keys():
             node_checked = node.attrib['checked']
@@ -157,7 +169,7 @@ def convert_from_xml_nodes(nodes):
             "merged":     node_merged,
             "attributes": attributes,
             "keys":       keys,
-            "uniqueKeys": uniqueKeys
+            "uniqueKeys": unique_keys
         }
     return result
 

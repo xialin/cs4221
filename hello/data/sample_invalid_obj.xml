@@ -1,0 +1,7 @@
+<data>
+	<position id="2" name="Manager">
+		<attribute id="1" name="StaffNumber" type="string"/>
+		<attribute id="2" relation_id="1"/>
+		<key>1,2</key>
+	</position>
+</data>

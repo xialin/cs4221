@@ -28,8 +28,10 @@ class HomePageView(View):
         ''')
         return HttpResponse(response_text)
 
+
 def homePage(request):
     return render(request, 'index.html', {})
+
 
 def download(request):
     if request.method == 'POST' and request.session.get('output_json'):
@@ -43,6 +45,7 @@ def download(request):
         return render(request, 'upload.html', {
             'uploaded_file_error': uploaded_file_error
         })    
+
 
 def upload(request):
     """

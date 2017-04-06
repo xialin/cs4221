@@ -189,6 +189,7 @@ def convert_from_xml_nodes(nodes):
 def sort_entities_into_weak_and_strong(entities):
     """
     Classify entities into weak and strong type
+    To be precise, we call en entity weak when it contains relation_id attribute.
     :param entities: entities dict
     :return: a map contains a list of weak entities and a list of strong entities
     """
@@ -214,6 +215,13 @@ def sort_entities_into_weak_and_strong(entities):
 #  CONVERSION -> PROCESS ENTITIES
 # ----------------------------------
 def process_strong_entities(request, strong_entities, processed_tables):
+    """
+    Process all strong entities
+    :param request: HttpRequest
+    :param strong_entities: entity list
+    :param processed_tables: list of tables already converted to JSON Schema
+    :return:
+    """
     for strong_entity in strong_entities:
         processed_tables = process_strong_entity(request, strong_entity, processed_tables)
         if isinstance(processed_tables, HttpResponse):
@@ -222,6 +230,13 @@ def process_strong_entities(request, strong_entities, processed_tables):
 
 
 def process_strong_entity(request, strong_entity, processed_tables):
+    """
+    Process single strong entity
+    :param request:
+    :param strong_entity:
+    :param processed_tables:
+    :return:
+    """
     table_name = strong_entity[XML_NAME]
 
     primary_key_options = get_primary_key_options(strong_entity)
@@ -236,6 +251,15 @@ def process_strong_entity(request, strong_entity, processed_tables):
 
 
 def process_weak_entities(request, weak_entities, entities, relationships, processed_tables):
+    """
+    Process all weak entities
+    :param request: HttpRequest
+    :param weak_entities: weak entity list
+    :param entities: total entity list
+    :param relationships: relationship list
+    :param processed_tables: list of tables already converted to JSON Schema
+    :return:
+    """
     for weak_entity in weak_entities:
         if is_processed(weak_entity, processed_tables):
             continue
@@ -258,6 +282,13 @@ def process_weak_entities(request, weak_entities, entities, relationships, proce
 
 
 def get_dependent_entity(weak_entity, entities, relationships):
+    """
+    For an entity with relation_id as attribute, find the other entity in that relationship
+    :param weak_entity:
+    :param entities:
+    :param relationships:
+    :return:
+    """
     relationship_id = None
     for attribute in weak_entity[XML_ATTRIBUTES].values():
         if XML_RELATION_ID in attribute:
@@ -282,6 +313,14 @@ def get_dependent_entity(weak_entity, entities, relationships):
 
 
 def process_weak_entity(request, weak_entity, dependent_entity_table, processed_tables):
+    """
+    Process single weak entity
+    :param request:
+    :param weak_entity:
+    :param dependent_entity_table:
+    :param processed_tables:
+    :return:
+    """
     table_name = weak_entity[XML_NAME]
     primary_key_options = get_primary_key_options(weak_entity, dependent_entity_table)
     processed_table = process_entity_into_table(request, weak_entity, primary_key_options, dependent_entity_table)
@@ -293,6 +332,14 @@ def process_weak_entity(request, weak_entity, dependent_entity_table, processed_
 
 
 def process_entity_into_table(request, entity, primary_key_options, dependent_table=None):
+    """
+    Convert entity data into JSON object
+    :param request:
+    :param entity:
+    :param primary_key_options:
+    :param dependent_table:
+    :return:
+    """
     table_name = entity[XML_NAME]
 
     primary_key_index = get_primary_key_index(request, primary_key_options, table_name)  # prompt user if necessary
@@ -307,7 +354,6 @@ def process_entity_into_table(request, entity, primary_key_options, dependent_ta
     if dependent_table is not None:
         foreign_keys.append(get_foreign_attributes(dependent_table))
 
-    # unique = get_unique_attributes(primary_key, foreign_keys)
     unique = get_unique_key_options(entity, dependent_table)
 
     # add foreign keys into attributes
@@ -315,10 +361,6 @@ def process_entity_into_table(request, entity, primary_key_options, dependent_ta
         for fkKey, fkValue in foreign_key[TABLE_REFERENCES].iteritems():
             if fkKey not in attribute_list:
                 attribute_list[fkKey] = fkValue
-                # for attr in foreign_key[TABLE_REFERENCES]:
-                #     print attr;
-                #     if  not attribute_list[attr.key]:
-                #         attribute_list[attr.key] = attr.value();
 
     processed_table = {
         TABLE_NAME: table_name,
@@ -327,7 +369,6 @@ def process_entity_into_table(request, entity, primary_key_options, dependent_ta
         # TABLE_FOREIGN_KEYS: foreign_keys,
         TABLE_UNIQUE: unique
     }
-    # print processed_table
     return processed_table
 
 
@@ -335,6 +376,14 @@ def process_entity_into_table(request, entity, primary_key_options, dependent_ta
 #  CONVERSION -> PROCESS RELATIONSHIPS
 # -------------------------------------
 def process_relationships(request, relationships, entities, processed_tables):
+    """
+    Process all relationships
+    :param request:
+    :param relationships:
+    :param entities:
+    :param processed_tables:
+    :return:
+    """
     for relationship in relationships.values():
         if is_processed(relationship, processed_tables):
             continue
@@ -373,6 +422,13 @@ def process_relationships(request, relationships, entities, processed_tables):
 
 
 def is_valid_relationship(relationship, relationships, entities):
+    """
+    Check if a relationship satisfies basic rules: connect two tables and connected tables exist.
+    :param relationship:
+    :param relationships:
+    :param entities:
+    :return:
+    """
     dependency_count = 0
     for attribute in relationship[XML_ATTRIBUTES].values():
         if XML_RELATION_ID in attribute:
@@ -388,6 +444,12 @@ def is_valid_relationship(relationship, relationships, entities):
 
 
 def get_dependent_relationship(relationship, relationships):
+    """
+    For a relationship with relation_id as attribute, find the other relationship
+    :param relationship:
+    :param relationships:
+    :return:
+    """
     for attribute in relationship[XML_ATTRIBUTES].values():
         if XML_RELATION_ID in attribute:
             relationship_id = attribute[XML_RELATION_ID]
@@ -396,6 +458,15 @@ def get_dependent_relationship(relationship, relationships):
 
 
 def process_relationship_into_table(request, relationship, processed_tables, entities, relationships):
+    """
+    Convert relationship data into JSON object
+    :param request:
+    :param relationship:
+    :param processed_tables:
+    :param entities:
+    :param relationships:
+    :return:
+    """
     table_name = relationship[XML_NAME]
     attributes = {}
     primary_key = []
@@ -559,7 +630,7 @@ def get_primary_key_options(entity, dominant_entity_table=None):
     """
     We use this function for both weak and strong entities. If weak entity, we MUST provide a dominant_entity_table
     """
-    print 'get primary key options for ' + entity[XML_NAME]
+    # print 'get primary key options for ' + entity[XML_NAME]
     attributes = entity[XML_ATTRIBUTES]
     options = []
     for key in entity[XML_KEYS]:

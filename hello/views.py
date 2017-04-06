@@ -11,6 +11,8 @@ from django.views.generic.base import View
 
 
 class HomePageView(View):
+    # TODO: allow user to edit XML raw file
+
     @staticmethod
     def dispatch(request, *args, **kwargs):
         response_text = textwrap.dedent('''\
@@ -26,10 +28,21 @@ class HomePageView(View):
         ''')
         return HttpResponse(response_text)
 
-
 def homePage(request):
     return render(request, 'index.html', {})
 
+def download(request):
+    if request.method == 'POST' and request.session.get('output_json'):
+        output_json = request.session.get('output_json')
+        response = HttpResponse(output_json, content_type='application/json')
+        response['Content-Disposition'] = 'attachment; filename=export.json'
+        return response
+    else:
+        print "invalid request"
+        uploaded_file_error = "Invalid Request!"
+        return render(request, 'upload.html', {
+            'uploaded_file_error': uploaded_file_error
+        })    
 
 def upload(request):
     """
@@ -172,11 +185,15 @@ def proceed_next(request):
             return validate_xml(request, tree)
 
         else:
-            uploaded_file_error = "Error processing the ER XML!"
+            # TODO(UI): add an error page and allow restart
+            uploaded_file_error = "Uploaded File is not found."
             return render(request, 'upload.html', {
                 'uploaded_file_error': uploaded_file_error
             })
 
+        # return render(request, 'choose_key.html', {
+        #     'uploaded_file_content': "test" + etree.tostring(xmlFile, pretty_print = True)
+        # })
     else:
         return render(request, 'upload.html', {
             "uploaded_file_error": "Unable to update primary key"

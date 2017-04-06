@@ -56,45 +56,50 @@ def validate_xml(request, tree):
     :param tree: XML parsed as ElementTree
     :return: processed JSON tables if valid, otherwise response with error message
     """
-    xml_content = request.session.get('xmlContent')
+    try: 
+        xml_content = request.session.get('xmlContent')
 
-    # basic check:
-    for child in tree:
-        # only entity and relationship object is recognised
-        if child.tag != 'entity' and child.tag != 'relationship':
-            return render(request, 'upload.html', {
-                'uploaded_file_error': 'Invalid object type [' + child.tag + ']. This file can only contain entity or '
-                                                                             'relationship object '
-            })
-        # each object contains only valid tags ['attribute', 'key', 'uniqueKey', 'foreignKey']
-        for element in child:
-            if element.tag not in ['attribute', 'key', 'uniqueKey', 'foreignKey']:
+        # basic check:
+        for child in tree:
+            # only entity and relationship object is recognised
+            if child.tag != 'entity' and child.tag != 'relationship':
                 return render(request, 'upload.html', {
-                    'uploaded_file_error': '[' + child.attrib[XML_NAME] + '] has invalid tag ' + element.tag + '!'
+                    'uploaded_file_error': 'Invalid object type [' + child.tag + ']. This file can only contain entity or '
+                                                                                 'relationship object '
+                })
+            # each object contains only valid tags ['attribute', 'key', 'uniqueKey', 'foreignKey']
+            for element in child:
+                if element.tag not in ['attribute', 'key', 'uniqueKey', 'foreignKey']:
+                    return render(request, 'upload.html', {
+                        'uploaded_file_error': '[' + child.attrib[XML_NAME] + '] has invalid tag ' + element.tag + '!'
+                    })
+
+        # select primary key
+        entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
+        relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
+        for entity in entities.values():
+            if len(entity[XML_KEYS]) > 1:
+                return prompt_choose_key_option(request, entity[XML_NAME], xml_content,
+                                                get_primary_key_display_options(entity, relationships))
+            elif len(entity[XML_KEYS]) == 0: 
+                return render(request, 'upload.html', {
+                    'uploaded_file_error': entity[XML_NAME] + " has no primary key"
                 })
 
-    # select primary key
-    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
-    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
-    for entity in entities.values():
-        if len(entity[XML_KEYS]) > 1:
-            return prompt_choose_key_option(request, entity[XML_NAME], xml_content,
-                                            get_primary_key_display_options(entity, relationships))
-        elif len(entity[XML_KEYS]) == 0: 
-            return render(request, 'upload.html', {
-                'uploaded_file_error': entity[XML_NAME] + " has no primary key"
-            })
-
-    # merge 1-1 table
-    for relationship in relationships.values():
-        if relationship["checked"] == "1":
-            continue  # skip relationship object checked
-        for attribute in relationship[XML_ATTRIBUTES].values():
-            if XML_MIN in attribute and XML_MAX in attribute \
-                    and attribute[XML_MIN] == "1" and attribute[XML_MAX] == "1":
-                merge_from = relationship[XML_NAME]
-                merge_to = entities[attribute[XML_ENTITY_ID]][XML_NAME]
-                return prompt_merge_option(request, merge_to, merge_from)
+        # merge 1-1 table
+        for relationship in relationships.values():
+            if relationship["checked"] == "1":
+                continue  # skip relationship object checked
+            for attribute in relationship[XML_ATTRIBUTES].values():
+                if XML_MIN in attribute and XML_MAX in attribute \
+                        and attribute[XML_MIN] == "1" and attribute[XML_MAX] == "1":
+                    merge_from = relationship[XML_NAME]
+                    merge_to = entities[attribute[XML_ENTITY_ID]][XML_NAME]
+                    return prompt_merge_option(request, merge_to, merge_from)
+    except Exception:
+           return render(request, 'upload.html', {
+                'uploaded_file_error': "Unexpected error"
+            }) 
 
     return convert_xml_to_json(request, tree)
 
@@ -105,33 +110,38 @@ def validate_xml(request, tree):
 
 
 def convert_xml_to_json(request, tree):
-    # Prep Data Structures
-    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
-    entities_list = sort_entities_into_weak_and_strong(entities)
-    weak_entities = entities_list[TYPE_WEAK]
-    strong_entities = entities_list[TYPE_STRONG]
+    try:
+        # Prep Data Structures
+        entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
+        entities_list = sort_entities_into_weak_and_strong(entities)
+        weak_entities = entities_list[TYPE_WEAK]
+        strong_entities = entities_list[TYPE_STRONG]
 
-    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
+        relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
 
-    # Start Processing
-    processed_tables = process_strong_entities(request, strong_entities, {})
+        # Start Processing
+        processed_tables = process_strong_entities(request, strong_entities, {})
 
-    processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
+        processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
 
-    if isinstance(processed_tables, HttpResponse):
-        return processed_tables
+        if isinstance(processed_tables, HttpResponse):
+            return processed_tables
 
-    processed_tables = process_relationships(request, relationships, entities, processed_tables)
+        processed_tables = process_relationships(request, relationships, entities, processed_tables)
 
-    if isinstance(processed_tables, HttpResponse):
-        return processed_tables
+        if isinstance(processed_tables, HttpResponse):
+            return processed_tables
 
-    for table in processed_tables.values():
-        table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
+        for table in processed_tables.values():
+            table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
 
-    output_json = json.dumps(processed_tables, indent=4)
-    request.session['output_json'] = output_json
-    request.session.save()
+        output_json = json.dumps(processed_tables, indent=4)
+        request.session['output_json'] = output_json
+        request.session.save()
+    except Exception:
+           return render(request, 'upload.html', {
+                'uploaded_file_error': "Unexpected error"
+            }) 
     return render(request, 'display_result.html', {
                 'output_json': output_json
             })

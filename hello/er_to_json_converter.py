@@ -57,7 +57,13 @@ def convert_xml_to_json(request, tree):
 
     processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
 
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
+
     processed_tables = process_relationships(request, relationships, entities, processed_tables)
+
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
 
     for table in processed_tables.values():
         table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
@@ -214,7 +220,9 @@ def process_weak_entities(request, weak_entities, entities, relationships, proce
             else:
                 if dependent_entity in stack:
                     # TODO: show circular reference error message
-                    return
+                    return render(request, 'upload.html', {
+                        'uploaded_file_error': "Circular reference is detected in uploaded xml!"
+                    })
                 else:
                     stack.append(current_entity)
                     stack.append(dependent_entity)
@@ -320,7 +328,9 @@ def process_relationships(request, relationships, entities, processed_tables):
             else:
                 if dependent_relationship in stack:
                     # TODO: show circular reference error
-                    return
+                    return render(request, 'upload.html', {
+                        'uploaded_file_error': "Circular reference is detected in uploaded xml!"
+                    })
                 else:
                     stack.append(current)
                     stack.append(dependent_relationship)

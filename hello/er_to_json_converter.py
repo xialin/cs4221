@@ -69,8 +69,11 @@ def convert_xml_to_json(request, tree):
         table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
 
     output_json = json.dumps(processed_tables, indent=4)
-    # print output_json
-    return JsonResponse(processed_tables)
+    request.session['output_json'] = output_json
+    request.session.save()
+    return render(request, 'display_result.html', {
+                'output_json': output_json
+            })
 
 
 # START VALIDATION

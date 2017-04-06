@@ -31,6 +31,19 @@ class HomePageView(View):
 def homePage(request):
     return render(request, 'index.html', {})
 
+def download(request):
+    if request.method == 'POST' and request.session.get('output_json'):
+        output_json = request.session.get('output_json')
+        response = HttpResponse(output_json, content_type='application/json')
+        response['Content-Disposition'] = 'attachment; filename=export.json'
+        return response
+    else:
+        print "invalid request"
+        uploaded_file_error = "Invalid Request!"
+        return render(request, 'upload.html', {
+            'uploaded_file_error': uploaded_file_error
+        })    
+
 def upload(request):
     """
     Allow user to upload ER object (XML)

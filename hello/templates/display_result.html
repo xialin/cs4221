@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load staticfiles%}
+
+{% block title %}Display Uploaded File{% endblock %}
+
+{% block content %}
+  <div class="row">
+      <h4 class="text-center" style="color:#717171;"><strong>JSON Schema generated successfully!</strong></h4>
+      
+  </div>
+
+  <div class="row" style="margin: 20px auto 20px auto;">
+      <form method="post" action="/hello/download" enctype="multipart/form-data">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-lg btn-default">Download</button>
+        <br>
+      </form>
+  </div>  
+
+  <div class="row">
+    <div class="col-md-6 col-md-offset-3">
+      {% if output_json %}
+         <textarea disabled="disabled" style="width: 100%; height: 500px">{{output_json}}</textarea>
+      {% endif %}
+    </div>
+  </div>
+
+{% endblock %}

@@ -4,12 +4,14 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.http import JsonResponse
 
-'''
-TODO:
-- add ER diagram validation logic
-- use class so we can use entities, relationships, processed_tables as global variables
-- if subset of a candidate key is unique, subset can be primary key as well
-'''
+"""
+converter.py
+
+"""
+
+# =================
+#  Constants
+# =================
 
 TYPE_STRONG = 'strong'
 TYPE_WEAK = 'weak'
@@ -42,41 +44,18 @@ XML_ATTRIBUTES = 'attributes'
 XML_CHECKED = 'checked'
 
 
-def convert_xml_to_json(request, tree):
-    # Prep Data Structures
-    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
-    entities_list = sort_entities_into_weak_and_strong(entities)
-    weak_entities = entities_list[TYPE_WEAK]
-    strong_entities = entities_list[TYPE_STRONG]
-
-    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
-
-    # Start Processing
-    processed_tables = process_strong_entities(request, strong_entities, {})
-
-    processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
-
-    if isinstance(processed_tables, HttpResponse):
-        return processed_tables
-
-    processed_tables = process_relationships(request, relationships, entities, processed_tables)
-
-    if isinstance(processed_tables, HttpResponse):
-        return processed_tables
-
-    for table in processed_tables.values():
-        table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
-
-    output_json = json.dumps(processed_tables, indent=4)
-    request.session['output_json'] = output_json
-    request.session.save()
-    return render(request, 'display_result.html', {
-                'output_json': output_json
-            })
+# =================
+#  1. VALIDATION
+# =================
 
 
-# START VALIDATION
 def validate_xml(request, tree):
+    """
+    Before converting to JSON Schema, validate the input XML
+    :param request: request from UI which contains the XML content
+    :param tree: XML parsed as ElementTree
+    :return: processed JSON tables if valid, otherwise response with error message
+    """
     xml_content = request.session.get('xmlContent')
 
     # basic check:
@@ -118,6 +97,44 @@ def validate_xml(request, tree):
                 return prompt_merge_option(request, merge_to, merge_from)
 
     return convert_xml_to_json(request, tree)
+
+
+# =================
+#  2. CONVERSION
+# =================
+
+
+def convert_xml_to_json(request, tree):
+    # Prep Data Structures
+    entities = convert_from_xml_nodes(tree.findall(XML_OBJ_ENTITY))
+    entities_list = sort_entities_into_weak_and_strong(entities)
+    weak_entities = entities_list[TYPE_WEAK]
+    strong_entities = entities_list[TYPE_STRONG]
+
+    relationships = convert_from_xml_nodes(tree.findall(XML_OBJ_RELATIONSHIP))
+
+    # Start Processing
+    processed_tables = process_strong_entities(request, strong_entities, {})
+
+    processed_tables = process_weak_entities(request, weak_entities, entities, relationships, processed_tables)
+
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
+
+    processed_tables = process_relationships(request, relationships, entities, processed_tables)
+
+    if isinstance(processed_tables, HttpResponse):
+        return processed_tables
+
+    for table in processed_tables.values():
+        table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
+
+    output_json = json.dumps(processed_tables, indent=4)
+    request.session['output_json'] = output_json
+    request.session.save()
+    return render(request, 'display_result.html', {
+                'output_json': output_json
+            })
 
 
 def get_primary_key_display_options(entity, relationships):

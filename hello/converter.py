@@ -426,7 +426,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 attr = attributesMap[key]
                 attrType = attr[XML_ATTRIBUTE_TYPE]
                 if not attrType:
-                    attrType = "String"
+                    attrType = "string"
                 attributes[new_key_name] = { "type": attrType,
                 "references": {
                   entity_table[TABLE_NAME]: key
@@ -454,7 +454,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 attr = attributesMap[key]
                 attrType = attr[XML_ATTRIBUTE_TYPE]
                 if not attrType:
-                    attrType = "String"
+                    attrType = "string"
                 attributes[new_key_name] = { "type": attrType,
                 "references": {
                   relationship_table[TABLE_NAME]: key
@@ -466,7 +466,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
             if XML_ATTRIBUTE_TYPE in attribute:
                 attrType = attribute[XML_ATTRIBUTE_TYPE]
             else: 
-                attrType = "String"
+                attrType = "string"
             attributes[attribute[XML_NAME]] = { "type": attrType}
 
     processed_table = {
@@ -495,7 +495,7 @@ def get_name_attributes(entity):
         if XML_NAME in attribute:
             attrType = attribute[XML_ATTRIBUTE_TYPE]
             if not attrType:
-                attrType = "String"
+                attrType = "string"
             entity_attribute_names[attribute[XML_NAME]] = {"type": attrType}
     return entity_attribute_names
 
@@ -512,7 +512,7 @@ def get_foreign_attributes(foreign_table):
         attribute = attributesMap[key]
         attrType = attribute[XML_ATTRIBUTE_TYPE]
         if not attrType:
-            attrType = "String"
+            attrType = "string"
         foreign_key[TABLE_REFERENCES][new_key_name] = { "type": attrType,
         "references": {
           foreign_table[TABLE_NAME]: key

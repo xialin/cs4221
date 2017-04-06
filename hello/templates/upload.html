@@ -21,10 +21,11 @@
       </form>
   </div>  
 
-
-
 {% if uploaded_file_error %}
-<p>Error occurs when uploading file: {{uploaded_file_error}}</p>
+<br>
+<div class="alert alert-danger">
+  <p>Error occurs when uploading file: {{uploaded_file_error}}</p>
+</div>
 {% endif %}
 
 {% endblock %}

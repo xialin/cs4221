@@ -39,6 +39,18 @@ def upload(request):
     """
     if request.method == 'POST' and request.FILES['er_file']:
         er_file = request.FILES['er_file']
+        filetypes = er_file.content_type.split('/')
+        filetype = '';
+        if len(filetypes) == 2:
+            filetype = filetypes[1]
+
+        print filetype
+        if  not filetype or "XML" != filetype.upper():
+            uploaded_file_error = "Uploaded file type is not supported."
+            return render(request, 'upload.html', {
+                'uploaded_file_error': uploaded_file_error
+            })
+
         er_tree = etree.parse(er_file)
         file_content = etree.tostring(er_tree, pretty_print=True)
 
@@ -67,7 +79,7 @@ def generate(request):
         print "generate failed >>>"
         uploaded_file_error = "Uploaded file is not found."
         return render(request, 'upload.html', {
-            uploaded_file_error: uploaded_file_error
+            'uploaded_file_error': uploaded_file_error
         })
 
 
@@ -88,7 +100,7 @@ def choose_key(request):
     else:
         uploaded_file_error = "Uploaded File is not found."
         return render(request, 'upload.html', {
-            uploaded_file_error: uploaded_file_error
+            'uploaded_file_error': uploaded_file_error
         })
 
 
@@ -109,7 +121,7 @@ def choose_merge(request):
     else:
         uploaded_file_error = "Uploaded File is not found."
         return render(request, 'upload.html', {
-            uploaded_file_error: uploaded_file_error
+            'uploaded_file_error': uploaded_file_error
         })
 
 
@@ -157,7 +169,7 @@ def proceed_next(request):
             # TODO(UI): add an error page and allow restart
             uploaded_file_error = "Uploaded File is not found."
             return render(request, 'upload.html', {
-                uploaded_file_error: uploaded_file_error
+                'uploaded_file_error': uploaded_file_error
             })
 
         # return render(request, 'choose_key.html', {
@@ -165,5 +177,5 @@ def proceed_next(request):
         # })
     else:
         return render(request, 'upload.html', {
-            "error_message": "Unable to update primary key"
+            "uploaded_file_error": "Unable to update primary key"
         })

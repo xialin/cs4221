@@ -346,8 +346,12 @@ def process_relationships(request, relationships, entities, processed_tables):
             print 'skip relationship ' + relationship[XML_NAME]
             continue
 
-        # TODO: replace all asserts to proper error prompt
-        assert is_valid_relationship(relationship, relationships, entities)
+        if not is_valid_relationship(relationship, relationships, entities):
+            return render(request, 'upload.html', {
+                'uploaded_file_error': "Relationship " + relationship[XML_NAME] + 'is invalid! Please make sure it is '
+                                                                                  'connecting the correct entity or '
+                                                                                  'relationship! '
+            })
 
         stack = [relationship]
         while len(stack) > 0:
@@ -362,7 +366,6 @@ def process_relationships(request, relationships, entities, processed_tables):
                     return processed_tables
             else:
                 if dependent_relationship in stack:
-                    # TODO: show circular reference error
                     return render(request, 'upload.html', {
                         'uploaded_file_error': "Circular reference is detected in uploaded xml!"
                     })

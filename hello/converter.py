@@ -402,7 +402,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
     table_name = relationship[XML_NAME]
     primary_key = []
     foreign_keys = []
-    attributes = []
+    attributes = {}
     for attribute in relationship[XML_ATTRIBUTES].values():
         if XML_ENTITY_ID in attribute:
             entity_table = processed_tables[entities[attribute[XML_ENTITY_ID]][XML_NAME]]
@@ -417,10 +417,20 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: entity_name, 
                 TABLE_REFERENCES: {}
             }
+            attributesMap = entity_table[XML_ATTRIBUTES]
             for key in entity_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(entity_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
+                
+                attr = attributesMap[key]
+                attrType = attr[XML_ATTRIBUTE_TYPE]
+                if not attrType:
+                    attrType = "String"
+                attributes[new_key_name] = { "type": attrType,
+                "references": {
+                  entity_table[TABLE_NAME]: key
+                }}
             foreign_keys.append(foreign_key)
 
         if XML_RELATION_ID in attribute:
@@ -435,22 +445,35 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: relationship_name, 
                 TABLE_REFERENCES: {}
             }
+            attributesMap = relationship_table[XML_ATTRIBUTES]
             for key in relationship_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(relationship_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
+
+                attr = attributesMap[key]
+                attrType = attr[XML_ATTRIBUTE_TYPE]
+                if not attrType:
+                    attrType = "String"
+                attributes[new_key_name] = { "type": attrType,
+                "references": {
+                  relationship_table[TABLE_NAME]: key
+                }}
+
             foreign_keys.append(foreign_key)
 
         if XML_NAME in attribute:
-            attributes.append(attribute[XML_NAME])
-
-    attributes += primary_key
+            if XML_ATTRIBUTE_TYPE in attribute:
+                attrType = attribute[XML_ATTRIBUTE_TYPE]
+            else: 
+                attrType = "String"
+            attributes[attribute[XML_NAME]] = { "type": attrType}
 
     processed_table = {
         TABLE_NAME:         table_name,
         TABLE_ATTRIBUTES:   attributes,
         TABLE_PRIMARY_KEY:  primary_key,
-        TABLE_FOREIGN_KEYS: foreign_keys,
+        # TABLE_FOREIGN_KEYS: foreign_keys,
         # TABLE_UNIQUE:       unique
     }
     processed_tables[table_name] = processed_table

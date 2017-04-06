@@ -1,42 +1,42 @@
 <data>
 	<entity id="1" name="Office">
-		<attribute id="1" name="Name" />
-		<attribute id="2" name="Country" />
-		<attribute id="3" name="Zip"/>
+		<attribute id="1" name="Name" type="string"/>
+		<attribute id="2" name="Country" type="string"/>
+		<attribute id="3" name="Zip" type="number"/>
 		<key>1</key>
 		<key>2,3</key>
 	</entity>
 
 	<entity id="2" name="Consultant">
-		<attribute id="1" name="PassportNumber"/>
-		<attribute id="2" name="Name"/>
-		<attribute id="3" name="StaffNumber"/>
+		<attribute id="1" name="PassportNumber" type="string"/>
+		<attribute id="2" name="Name" type="string"/>
+		<attribute id="3" name="StaffNumber" type="string"/>
 		<attribute id="4" relation_id="1"/>
 		<key>1</key>
 		<key>3,4</key>
 	</entity>
 
 	<entity id="3" name="Project">
-		<attribute id="1" name="Code"/>
-		<attribute id="2" name="Description"/>
+		<attribute id="1" name="Code" type="number"/>
+		<attribute id="2" name="Description" type="string"/>
 		<key>1</key>
 	</entity>
 
 	<entity id="4" name="Customer">
-		<attribute id="1" name="AccountNumber"/>
-		<attribute id="2" name="Name"/>
+		<attribute id="1" name="AccountNumber" type="number"/>
+		<attribute id="2" name="Name" type="string"/>
 		<key>1</key>
 	</entity>
 
 	<entity id="5" name="Pool">
-		<attribute id="1" name="Name"/>
-		<attribute id="2" name="Location"/>
+		<attribute id="1" name="Name" type="string"/>
+		<attribute id="2" name="Location" type="string"/>
 		<key>1</key>
 	</entity>
 
 	<entity id="6" name="Resource">
-		<attribute id="1" name="AssetNumber"/>
-		<attribute id="2" name="Type"/>
+		<attribute id="1" name="AssetNumber" type="number"/>
+		<attribute id="2" name="Type" type="string"/>
 		<key>1</key>
 	</entity>
 
@@ -50,7 +50,6 @@
 		<attribute id="1" name="Matriculation Date"/>
 		<attribute id="2" entity_id="2" min_participation="0" max_participation="N"/>
 		<attribute id="3" entity_id="3" min_participation="0" max_participation="N"/>
-		<!-- <attribute id="4" relation_id="2" min_participation="0" max_participation="N"/> -->
 		<key>2,3</key>
 	</relationship>
 

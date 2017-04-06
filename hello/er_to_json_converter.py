@@ -219,7 +219,6 @@ def process_weak_entities(request, weak_entities, entities, relationships, proce
                                                        processed_tables)
             else:
                 if dependent_entity in stack:
-                    # TODO: show circular reference error message
                     return render(request, 'upload.html', {
                         'uploaded_file_error': "Circular reference is detected in uploaded xml!"
                     })
@@ -589,7 +588,6 @@ def merge_relationship_in_xml(tree, merge_table, merge_from, merge_to):
     # delete relationship entry
     """
     if merge_table == "0":
-        print 'TODO: mark relation table as checked'
         for node in tree:
             if node.attrib[XML_NAME] == merge_from:
                 node.set("checked", "1")

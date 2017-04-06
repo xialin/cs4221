@@ -90,7 +90,7 @@ def validate_xml(request, tree):
         for element in child:
             if element.tag not in ['attribute', 'key', 'uniqueKey', 'foreignKey']:
                 return render(request, 'upload.html', {
-                    'uploaded_file_error': '[' + child.attrib[XML_NAME] + '] has invalid tag "' + element.tag + '"!'
+                    'uploaded_file_error': '[' + child.attrib[XML_NAME] + '] has invalid tag ' + element.tag + '!'
                 })
 
     # select primary key
@@ -116,7 +116,6 @@ def validate_xml(request, tree):
                 merge_to = entities[attribute[XML_ENTITY_ID]][XML_NAME]
                 return prompt_merge_option(request, merge_to, merge_from)
 
-    # TODO: remove redundant primary key in relation table
     return convert_xml_to_json(request, tree)
 
 

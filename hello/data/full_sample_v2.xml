@@ -50,7 +50,6 @@
 		<attribute id="1" name="Matriculation Date"/>
 		<attribute id="2" entity_id="2" min_participation="0" max_participation="N"/>
 		<attribute id="3" entity_id="3" min_participation="0" max_participation="N"/>
-		<!-- <attribute id="4" relation_id="2" min_participation="0" max_participation="N"/> -->
 		<key>2,3</key>
 	</relationship>
 

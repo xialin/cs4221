@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect
 from django.conf import settings
 import textwrap
 
-from er_to_json_converter import convert_xml_to_json
-from er_to_json_converter import update_primary_key_in_xml, merge_relationship_in_xml, validate_xml
+from converter import convert_xml_to_json
+from converter import update_primary_key_in_xml, merge_relationship_in_xml, validate_xml
 
 import lxml.etree as etree
 from django.http import HttpResponse

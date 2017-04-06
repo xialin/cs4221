@@ -32,6 +32,7 @@ XML_KEY = 'key'
 XML_ID = 'id'
 XML_NAME = 'name'
 XML_ATTRIBUTE = 'attribute'
+XML_ATTRIBUTE_TYPE = 'type'
 XML_ENTITY_ID = 'entity_id'
 XML_RELATION_ID = 'relation_id'
 XML_MIN = 'min_participation'
@@ -289,15 +290,19 @@ def process_entity_table(request, entity, primary_key_options, dependent_table=N
 
     # add foreign keys into attributes
     for foreign_key in foreign_keys:
-        for attr in foreign_key[TABLE_REFERENCES]:
-            if attr not in attribute_list:
-                attribute_list.append(attr)
+        for fkKey, fkValue in foreign_key[TABLE_REFERENCES].iteritems():
+            if  fkKey not in attribute_list:
+                attribute_list[fkKey] = fkValue;
+        # for attr in foreign_key[TABLE_REFERENCES]:
+        #     print attr;
+        #     if  not attribute_list[attr.key]:
+        #         attribute_list[attr.key] = attr.value();
 
     processed_table = {
         TABLE_NAME: table_name,
         TABLE_ATTRIBUTES: attribute_list,
         TABLE_PRIMARY_KEY: primary_key,
-        TABLE_FOREIGN_KEYS: foreign_keys,
+        # TABLE_FOREIGN_KEYS: foreign_keys,
         TABLE_UNIQUE: unique
     }
     # print processed_table
@@ -431,10 +436,13 @@ def get_name_attributes(entity):
     :param entity:
     :return:
     """
-    entity_attribute_names = []
+    entity_attribute_names = {}
     for attribute in entity[TABLE_ATTRIBUTES].values():
         if XML_NAME in attribute:
-            entity_attribute_names.append(attribute[XML_NAME])
+            attrType = attribute[XML_ATTRIBUTE_TYPE]
+            if not attrType:
+                attrType = "String"
+            entity_attribute_names[attribute[XML_NAME]] = {"type": attrType}
     return entity_attribute_names
 
 
@@ -443,9 +451,19 @@ def get_foreign_attributes(foreign_table):
         TABLE_ENTITY: foreign_table[TABLE_NAME],
         TABLE_REFERENCES: {}
     }
+
+    attributesMap = foreign_table[XML_ATTRIBUTES]
     for key in foreign_table[TABLE_PRIMARY_KEY]:
         new_key_name = format_foreign_key(foreign_table[TABLE_NAME], key)
-        foreign_key[TABLE_REFERENCES][new_key_name] = key
+        attribute = attributesMap[key]
+        attrType = attribute[XML_ATTRIBUTE_TYPE]
+        if not attrType:
+            attrType = "String"
+        foreign_key[TABLE_REFERENCES][new_key_name] = { "type": attrType,
+        "references": {
+          foreign_table[TABLE_NAME]: key
+        }
+}
 
     return foreign_key
 

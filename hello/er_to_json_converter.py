@@ -78,6 +78,10 @@ def validate_xml(request, tree):
         if len(entity[XML_KEYS]) > 1:
             return prompt_choose_key_option(request, entity[XML_NAME], xml_content,
                                             get_primary_key_display_options(entity, relationships))
+        elif len(entity[XML_KEYS]) == 0: 
+            return render(request, 'upload.html', {
+                'uploaded_file_error': entity[XML_NAME] + " has no primary key"
+            })
 
     # merge 1-1 table
     for relationship in relationships.values():

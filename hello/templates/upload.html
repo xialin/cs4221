@@ -10,7 +10,7 @@
     </div>
   </div>
   <div class="row" style="width: 100px; margin: 20px auto 0 auto;">
-      <form method="post" enctype="multipart/form-data">
+      <form method="post" action="/hello/upload" enctype="multipart/form-data">
         {% csrf_token %}
         <div class="row" style="width: 100px; margin: 20px auto 0 auto;">
         	<input type="file" name="er_file">

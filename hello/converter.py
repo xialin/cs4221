@@ -415,16 +415,18 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: entity_name,
                 TABLE_REFERENCES: {}
             }
-            attributes_map = entity_table[XML_ATTRIBUTES]
+            
             for key in entity_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(entity_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
 
-                attr = attributes_map[key]
-                attr_type = attr[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attr else "string"
+                attr_type = attribute[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attribute else "string"
                 attributes[new_key_name] = {
-                    "type": attr_type
+                    "type": attr_type,
+                    "references": {
+                        entity_table[TABLE_NAME]: key
+                    }
                 }
             foreign_keys.append(foreign_key)
 
@@ -440,16 +442,18 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
                 TABLE_ENTITY: relationship_name,
                 TABLE_REFERENCES: {}
             }
-            attributes_map = relationship_table[XML_ATTRIBUTES]
+
             for key in relationship_table[TABLE_PRIMARY_KEY]:
                 new_key_name = format_foreign_key(relationship_table[TABLE_NAME], key)
                 primary_key.append(new_key_name)
                 foreign_key[TABLE_REFERENCES][new_key_name] = key
 
-                attr = attributes_map[key]
-                attr_type = attr[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attr else "string"
+                attr_type = attribute[XML_ATTRIBUTE_TYPE] if XML_ATTRIBUTE_TYPE in attribute else "string"
                 attributes[new_key_name] = {
-                    "type": attr_type
+                    "type": attr_type,
+                    "references": {
+                        relationship_table[TABLE_NAME]: key
+                    }
                 }
             foreign_keys.append(foreign_key)
 
@@ -463,7 +467,7 @@ def process_relationship_into_table(request, relationship, processed_tables, ent
         TABLE_NAME: table_name,
         TABLE_ATTRIBUTES: attributes,
         TABLE_PRIMARY_KEY: primary_key,
-        TABLE_FOREIGN_KEYS: foreign_keys,
+        # TABLE_FOREIGN_KEYS: foreign_keys,
         TABLE_UNIQUE: unique
     }
     processed_tables[table_name] = processed_table

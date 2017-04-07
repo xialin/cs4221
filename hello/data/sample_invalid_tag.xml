@@ -1,11 +1,8 @@
 <data>
 	<entity id="2" name="Manager">
+		<invalid id="0" name="invalidTag" />
 		<attribute id="1" name="StaffNumber" type="string"/>
 		<attribute id="2" relation_id="1"/>
 		<key>1,2</key>
-        <entity id="1" name="Office">
-            <attribute id="1" name="Name" type="string"/>
-            <attribute id="2" name="Address" type="string"/>
-        </entity>
 	</entity>
 </data>

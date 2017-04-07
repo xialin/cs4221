@@ -47,7 +47,7 @@
 	</relationship>
 
 	<relationship id="2" name="WorkFor">
-		<attribute id="1" name="Matriculation Date"/>
+		<attribute id="1" name="Cost"/>
 		<attribute id="2" entity_id="2" min_participation="0" max_participation="N"/>
 		<attribute id="3" entity_id="3" min_participation="0" max_participation="N"/>
 		<key>2,3</key>

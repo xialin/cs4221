@@ -131,6 +131,7 @@ def convert_xml_to_json(request, tree):
             return processed_tables
 
         for table in processed_tables.values():
+            table["type"] = "object"
             table.pop(TABLE_NAME)  # Remove the table name we stored for convenience during processing
 
         output_json = json.dumps(processed_tables, indent=4)
